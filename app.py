@@ -35,14 +35,14 @@ def parse_order_with_groq(order_text):
     }
 
     response = requests.post(url, headers=headers, json=data)
-    print(f"\U0001F501 Status Code: {response.status_code}")
+    print(f"🔁 Status Code: {response.status_code}")
 
     try:
         result = response.json()
-        print("\U0001F4E6 Raw Response JSON:", result)
+        print("📦 Raw Response JSON:", result)
 
         content = result["choices"][0]["message"]["content"]
-        print("\n\U0001F539 Raw Groq Content:\n", content)
+        print("\n🔹 Raw Groq Content:\n", content)
 
         parsed = {}
         for line in content.strip().split("\n"):
@@ -86,7 +86,8 @@ def take_order():
     call_sid = request.form.get("CallSid")
     order_text = request.form.get("SpeechResult", "").strip()
 
-    if not order_text or order_text.lower() in ['no', 'nothing', 'nah']:
+    NEGATIVE_RESPONSES = ['no', 'nothing', 'nah', 'no thanks', 'not now', "i don't want", 'don’t want']
+    if not order_text or any(phrase in order_text.lower() for phrase in NEGATIVE_RESPONSES):
         response = VoiceResponse()
         response.say("Okay, thank you for calling. Goodbye!", voice='Polly.Aditi')
         response.hangup()
