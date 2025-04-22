@@ -18,6 +18,8 @@ def load_inventory():
 
 groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model = "llama-3.1-8b-instant"
+twilio_sid = os.getenv("TWILIO_SID")
+twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
 
 def parse_order_with_groq(order_text):
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -75,10 +77,22 @@ def voice():
     sessions[call_sid] = {"orders": []}
 
     response = VoiceResponse()
-    gather = response.gather(input='speech', action="/take_order", speechTimeout='auto')
-    gather.say("Welcome to Parag General Store. What would you like to order?", voice='Polly.Aditi')
+    gather = response.gather(input='speech', action="/take_name", speechTimeout='auto')
+    gather.say("Welcome to Parag General Store. May I know your name, please?", voice='Polly.Aditi')
 
     response.say("Sorry, I didn't catch that. Goodbye.")
+    return Response(str(response), mimetype='application/xml')
+
+@app.route("/take_name", methods=["POST"])
+def take_name():
+    call_sid = request.form.get("CallSid")
+    user_name = request.form.get("SpeechResult", "")
+    sessions[call_sid]["user_name"] = user_name
+
+    response = VoiceResponse()
+    gather = response.gather(input='speech', action="/take_order", speechTimeout='auto')
+    gather.say(f"Hello {user_name}. What would you like to order?", voice='Polly.Aditi')
+
     return Response(str(response), mimetype='application/xml')
 
 @app.route("/take_order", methods=["POST"])
@@ -173,7 +187,7 @@ def send_order_confirmation(call_sid):
 
     message = f"Order Confirmation:\nCustomer: {user_name}\nItems: {orders}"
 
-    client = Client()
+    client = Client(twilio_sid, twilio_token)
     user_phone = "+919129823355"
     store_phone = "+917388508018"
     from_number = "+19787805377"
