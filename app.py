@@ -17,7 +17,7 @@ def load_inventory():
 
 # Groq order parser
 groq_api_key = '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'
-groq_model = "mixtral-8x7b-32768"
+groq_model = "llama-3.1-8b-instant"
 
 def parse_order_with_groq(order_text):
     url = "https://api.groq.com/openai/v1/chat/completions"
@@ -30,7 +30,7 @@ def parse_order_with_groq(order_text):
         "messages": [
             {
                 "role": "system",
-                "content": "You are an order parser for a general store. Extract product name and quantity from user's order."
+                "content": "You are an order parser for a general store. Extract product name and quantity from user's order in clean format."
             },
             {
                 "role": "user",
@@ -41,17 +41,38 @@ def parse_order_with_groq(order_text):
     }
 
     response = requests.post(url, headers=headers, json=data)
-    result = response.json()
+    print(f"🔁 Status Code: {response.status_code}")
+
     try:
+        result = response.json()
+        print("📦 Raw Response JSON:")
+        print(result)
+
         content = result["choices"][0]["message"]["content"]
+        print("\n🔹 Raw Groq Content:\n", content)
+
+        # Parse lines
         parsed = {}
         for line in content.strip().split("\n"):
-            if ":" in line:
-                key, value = line.split(":", 1)
-                parsed[key.strip().lower()] = value.strip()
-        return parsed
+            line = line.strip().lower()
+
+            if line.startswith("product name:") or line.startswith("- product name:"):
+                parsed["product"] = line.split(":", 1)[1].strip().title()
+
+            elif line.startswith("quantity:") or line.startswith("- quantity:"):
+                quantity_text = line.split(":", 1)[1].strip()
+
+                # Extract numeric value
+                match = re.search(r"\d+", quantity_text)
+                if match:
+                    parsed["quantity"] = int(match.group())
+                else:
+                    parsed["quantity"] = 1  # fallback if number not found
+
+        return parsed if "product" in parsed else {"product": "unknown", "quantity": 1}
+
     except Exception as e:
-        print("Error parsing Groq response:", e)
+        print("❌ Error parsing Groq response:", e)
         return {"product": "unknown", "quantity": 1}
 
 # Home route
