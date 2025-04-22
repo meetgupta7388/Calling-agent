@@ -63,16 +63,16 @@ def parse_order_with_groq(order_text):
 
 
 # Home route to handle Twilio webhook for incoming calls
-@app.route("/voice", methods=["POST"])
+@app.route("/voice", methods=["GET", "POST"])
 def voice():
+    if request.method == "GET":
+        return "<h1>Voice Webhook Ready</h1>"
+
     call_sid = request.form.get("CallSid")
     sessions[call_sid] = {"orders": []}
-
     response = VoiceResponse()
-    response.say("Welcome to Parag General Store! Please tell me your name.", voice='Polly.Aditi')
-
-    response.gather(input='speech', action="/take_name", speechTimeout='auto')
-    return Response(str(response), mimetype='application/xml')
+    response.say("Welcome to Parag General Store. What would you like to order?")
+    return Response(str(response), mimetype='text/xml')
 
 # Route to take the user's name
 @app.route("/take_name", methods=["POST"])
