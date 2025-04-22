@@ -74,23 +74,36 @@ def voice():
         return "<h1>Voice Webhook Ready</h1>"
 
     call_sid = request.form.get("CallSid")
-    sessions[call_sid] = {"orders": []}
+    sessions[call_sid] = {"orders": [], "user_name": None}
 
     response = VoiceResponse()
-    gather = response.gather(input='speech', action="/take_name", speechTimeout='auto')
+    gather = response.gather(
+        input='speech',
+        action="/take_name",
+        speechTimeout='auto',
+        language="en-IN"
+    )
     gather.say("Welcome to Parag General Store. May I know your name, please?", voice='Polly.Aditi')
 
-    response.say("Sorry, I didn't catch that. Goodbye.")
     return Response(str(response), mimetype='application/xml')
 
 @app.route("/take_name", methods=["POST"])
 def take_name():
     call_sid = request.form.get("CallSid")
     user_name = request.form.get("SpeechResult", "")
-    sessions[call_sid]["user_name"] = user_name
+
+    if call_sid not in sessions:
+        sessions[call_sid] = {"orders": [], "user_name": user_name}
+    else:
+        sessions[call_sid]["user_name"] = user_name
 
     response = VoiceResponse()
-    gather = response.gather(input='speech', action="/take_order", speechTimeout='auto')
+    gather = response.gather(
+        input='speech',
+        action="/take_order",
+        speechTimeout='auto',
+        language="en-IN"
+    )
     gather.say(f"Hello {user_name}. What would you like to order?", voice='Polly.Aditi')
 
     return Response(str(response), mimetype='application/xml')
@@ -120,7 +133,7 @@ def take_order():
     if not product:
         response = VoiceResponse()
         response.say("Sorry, I couldn't understand the product. Could you please say it again?", voice='Polly.Aditi')
-        response.gather(input='speech', action="/take_order", speechTimeout='auto')
+        response.gather(input='speech', action="/take_order", speechTimeout='auto', language="en-IN")
         return Response(str(response), mimetype='application/xml')
 
     inventory = load_inventory()
@@ -133,17 +146,17 @@ def take_order():
                 sessions[call_sid]["orders"].append(f"{product} x{quantity}")
                 response = VoiceResponse()
                 response.say(f"We have {product} in stock. Shall I confirm this order?", voice='Polly.Aditi')
-                response.gather(input='speech', action="/confirm_order", speechTimeout='auto')
+                response.gather(input='speech', action="/confirm_order", speechTimeout='auto', language="en-IN")
                 return Response(str(response), mimetype='application/xml')
             else:
                 response = VoiceResponse()
                 response.say(f"We only have {row['Quantity']} {product}s in stock. Would you like to take them?", voice='Polly.Aditi')
-                response.gather(input='speech', action="/confirm_order", speechTimeout='auto')
+                response.gather(input='speech', action="/confirm_order", speechTimeout='auto', language="en-IN")
                 return Response(str(response), mimetype='application/xml')
 
     response = VoiceResponse()
     response.say(f"Sorry, I couldn't find {product} in our inventory. Could you please say it again?", voice='Polly.Aditi')
-    response.gather(input='speech', action="/take_order", speechTimeout='auto')
+    response.gather(input='speech', action="/take_order", speechTimeout='auto', language="en-IN")
     return Response(str(response), mimetype='application/xml')
 
 @app.route("/confirm_order", methods=["POST"])
@@ -154,14 +167,14 @@ def confirm_order():
     response = VoiceResponse()
     if 'yes' in user_input:
         response.say("Your order has been confirmed. Do you want to order something else?", voice='Polly.Aditi')
-        response.gather(input='speech', action="/take_order", speechTimeout='auto')
+        response.gather(input='speech', action="/take_order", speechTimeout='auto', language="en-IN")
     elif 'no' in user_input:
         order_summary = ", ".join(sessions[call_sid]["orders"])
         response.say(f"Your order: {order_summary}. Is that correct?", voice='Polly.Aditi')
-        response.gather(input='speech', action="/final_confirmation", speechTimeout='auto')
+        response.gather(input='speech', action="/final_confirmation", speechTimeout='auto', language="en-IN")
     else:
         response.say("I didn't understand that. Please say yes or no.", voice='Polly.Aditi')
-        response.gather(input='speech', action="/confirm_order", speechTimeout='auto')
+        response.gather(input='speech', action="/confirm_order", speechTimeout='auto', language="en-IN")
 
     return Response(str(response), mimetype='application/xml')
 
