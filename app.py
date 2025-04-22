@@ -21,6 +21,12 @@ groq_model = "llama-3.1-8b-instant"
 twilio_sid = os.getenv("TWILIO_SID")
 twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
 
+# Twilio WhatsApp sandbox number
+whatsapp_from = "whatsapp:+14155238886"
+# Only verified WhatsApp numbers can receive messages in sandbox
+user_phone = "whatsapp:+917388508018"
+store_phone = "whatsapp:+917388508018"
+
 def parse_order_with_groq(order_text):
     url = "https://api.groq.com/openai/v1/chat/completions"
     headers = {
@@ -201,12 +207,12 @@ def send_order_confirmation(call_sid):
     message = f"Order Confirmation:\nCustomer: {user_name}\nItems: {orders}"
 
     client = Client(twilio_sid, twilio_token)
-    user_phone = "+919129823355"
-    store_phone = "+917388508018"
-    from_number = "+19787805377"
-
-    client.messages.create(body=message, from_=from_number, to=user_phone)
-    client.messages.create(body=message, from_=from_number, to=store_phone)
+    try:
+        client.messages.create(body=message, from_=whatsapp_from, to=user_phone)
+        client.messages.create(body=message, from_=whatsapp_from, to=store_phone)
+        print("✅ WhatsApp message sent")
+    except Exception as e:
+        print("❌ Failed to send WhatsApp message:", e)
 
 if __name__ == "__main__":
     app.run(debug=True)
