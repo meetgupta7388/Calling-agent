@@ -1,22 +1,25 @@
 import os
+import re
 import pandas as pd
+import requests
 from flask import Flask, request, Response
 from twilio.twiml.voice_response import VoiceResponse, Gather
 from twilio.rest import Client
-import requests
 
 app = Flask(__name__)
 
-# Sample inventory (can be loaded from Excel)
+from dotenv import load_dotenv
+load_dotenv()
+
+# Sample inventory
 inventory_file = 'inventory.xlsx'
 sessions = {}
 
-# Load inventory from Excel file
 def load_inventory():
     return pd.read_excel(inventory_file)
 
-# Groq order parser
-groq_api_key = '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'
+# Groq API
+groq_api_key = os.getenv("GROQ_API_KEY")
 groq_model = "llama-3.1-8b-instant"
 
 def parse_order_with_groq(order_text):
@@ -51,36 +54,25 @@ def parse_order_with_groq(order_text):
         content = result["choices"][0]["message"]["content"]
         print("\n🔹 Raw Groq Content:\n", content)
 
-        # Parse lines
         parsed = {}
         for line in content.strip().split("\n"):
             line = line.strip().lower()
-
             if line.startswith("product name:") or line.startswith("- product name:"):
                 parsed["product"] = line.split(":", 1)[1].strip().title()
-
             elif line.startswith("quantity:") or line.startswith("- quantity:"):
                 quantity_text = line.split(":", 1)[1].strip()
-
-                # Extract numeric value
                 match = re.search(r"\d+", quantity_text)
-                if match:
-                    parsed["quantity"] = int(match.group())
-                else:
-                    parsed["quantity"] = 1  # fallback if number not found
+                parsed["quantity"] = int(match.group()) if match else 1
 
         return parsed if "product" in parsed else {"product": "unknown", "quantity": 1}
-
     except Exception as e:
         print("❌ Error parsing Groq response:", e)
         return {"product": "unknown", "quantity": 1}
 
-# Home route
 @app.route("/")
 def home():
     return "<h2>👋 Welcome to Parag General Store Calling Agent Backend!</h2><p>This server is working correctly.</p>"
 
-# Entry route: starts interaction and gathers speech
 @app.route("/voice", methods=["GET", "POST"])
 def voice():
     if request.method == "GET":
@@ -96,7 +88,6 @@ def voice():
     response.say("Sorry, I didn't catch that. Goodbye.")
     return Response(str(response), mimetype='application/xml')
 
-# Take order
 @app.route("/take_order", methods=["POST"])
 def take_order():
     call_sid = request.form.get("CallSid")
@@ -106,14 +97,17 @@ def take_order():
     parsed_order = parse_order_with_groq(order_text)
     print(f"Parsed Order: {parsed_order}")
 
-    product = parsed_order.get("product")
-    quantity = int(parsed_order.get("quantity", 1))
+    product = parsed_order.get("product", "").strip()
+    try:
+        quantity = int(parsed_order.get("quantity", 1))
+    except:
+        quantity = 1
 
     inventory = load_inventory()
     matched = False
 
     for _, row in inventory.iterrows():
-        if product.lower() in row['Product'].lower():
+        if product and product.lower() in str(row['Product']).lower():
             matched = True
             if row['Quantity'] >= quantity:
                 sessions[call_sid]["orders"].append(f"{product} x{quantity}")
@@ -127,13 +121,11 @@ def take_order():
                 response.gather(input='speech', action="/confirm_order", speechTimeout='auto')
                 return Response(str(response), mimetype='application/xml')
 
-    if not matched:
-        response = VoiceResponse()
-        response.say(f"Sorry, I couldn't find {product} in our inventory. Could you please say it again?", voice='Polly.Aditi')
-        response.gather(input='speech', action="/take_order", speechTimeout='auto')
-        return Response(str(response), mimetype='application/xml')
+    response = VoiceResponse()
+    response.say(f"Sorry, I couldn't find {product} in our inventory. Could you please say it again?", voice='Polly.Aditi')
+    response.gather(input='speech', action="/take_order", speechTimeout='auto')
+    return Response(str(response), mimetype='application/xml')
 
-# Confirm order
 @app.route("/confirm_order", methods=["POST"])
 def confirm_order():
     call_sid = request.form.get("CallSid")
@@ -153,7 +145,6 @@ def confirm_order():
 
     return Response(str(response), mimetype='application/xml')
 
-# Final confirmation and SMS
 @app.route("/final_confirmation", methods=["POST"])
 def final_confirmation():
     call_sid = request.form.get("CallSid")
@@ -168,7 +159,6 @@ def final_confirmation():
 
     return Response(str(response), mimetype='application/xml')
 
-# Send SMS to store + user
 def send_order_confirmation(call_sid):
     orders = ", ".join(sessions[call_sid]["orders"])
     user_name = sessions[call_sid].get("user_name", "Customer")
@@ -177,7 +167,7 @@ def send_order_confirmation(call_sid):
 
     client = Client()
 
-    # Replace with actual numbers
+    # Replace with actual phone numbers
     user_phone = "+919129823355"
     store_phone = "+917388508018"
     from_number = "+19787805377"  # Your Twilio number
