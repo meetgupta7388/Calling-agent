@@ -57,8 +57,10 @@ def parse_order_with_groq(order_text):
         parsed = {}
         for line in content.strip().split("\n"):
             line = line.strip().lower()
-            if line.startswith("product name:") or line.startswith("- product name:"):
+
+            if line.startswith("product:") or line.startswith("- product:") or line.startswith("product name:") or line.startswith("- product name:"):
                 parsed["product"] = line.split(":", 1)[1].strip().title()
+
             elif line.startswith("quantity:") or line.startswith("- quantity:"):
                 quantity_text = line.split(":", 1)[1].strip()
                 match = re.search(r"\d+", quantity_text)
@@ -68,6 +70,7 @@ def parse_order_with_groq(order_text):
     except Exception as e:
         print("❌ Error parsing Groq response:", e)
         return {"product": "unknown", "quantity": 1}
+
 
 @app.route("/")
 def home():
