@@ -23,9 +23,9 @@ twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
 
 # Twilio WhatsApp sandbox number
 whatsapp_from = "whatsapp:+14155238886"
-# Only verified WhatsApp numbers can receive messages in sandbox
-user_phone = "whatsapp:+917388508018"
+# Store and customer phone numbers (WhatsApp format)
 store_phone = "whatsapp:+917388508018"
+user_phone = "whatsapp:+919129823355"
 
 def parse_order_with_groq(order_text):
     url = "https://api.groq.com/openai/v1/chat/completions"
