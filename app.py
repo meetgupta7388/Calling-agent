@@ -157,8 +157,10 @@ def final_confirmation():
     if 'yes' in user_input:
         send_order_confirmation(call_sid)
         response.say("Thank you for your order. We'll process it shortly.", voice='Polly.Aditi')
+        response.hangup()  # 👈 cleanly ends the call
     else:
         response.say("Okay, feel free to call us anytime to place your order.", voice='Polly.Aditi')
+        response.hangup()
 
     return Response(str(response), mimetype='application/xml')
 
